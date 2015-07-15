@@ -43,7 +43,7 @@ public class UserDAOImpl implements UserDAO {
             createUser.setInt(3, user.getAge());
             createUser.setString(4, user.getLogin());
             createUser.setString(5, user.getPassword());
-
+            // roleImpl же не создано ни где, и role создавать не нужно, она должна быть уже создана, ты строишь только связь 
             roleImpl.create(user.getRole());
 
             if(user.getAddress()!= null){
@@ -89,12 +89,12 @@ public class UserDAOImpl implements UserDAO {
                 user.setAge(age);
                 user.setLogin(login);
                 user.setPassword(password);
-
+                // У юзера должно быть поле ид. По которому нужно сделать запрос в рольдао
                 Role role = new Role();
                 String roleName = allRS.getString(7);
                 role.setRoleName(roleName);
                 user.setRole(role);
-
+                // Есть AddressDao, которое по id получит объект адреса
                 if (allRS.getInt(8) != 0) {
 
                     Address address = new Address();
@@ -150,6 +150,7 @@ public class UserDAOImpl implements UserDAO {
                 user.setLogin(login);
                 user.setPassword(password);
                 user.setRole(roleImpl.getRole(id));
+                // Мне кажется что ты не то проверяеш
                 if (user.getAddress()!= null){
                     user.setAddress(addresImpl.getAddress(id));
                 }
@@ -181,11 +182,6 @@ public class UserDAOImpl implements UserDAO {
             updateUser.setString(5, user.getPassword());
             updateUser.setInt(6, user.getRole().getId());
             updateUser.setInt(7, user.getId());
-
-
-
-            int roleId = user.getRole().getId();
-            user.getRole().setId(roleId);
 
             if (user.getAddress() != null) {
                 addresImpl.update(user.getAddress());

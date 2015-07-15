@@ -10,6 +10,7 @@ import java.util.List;
 /**
  * Created by Admin on 08.07.2015.
  */
+//PreparedStatement нужно закрывать
 public class RoleDAOImpl implements RoleDAO {
 
     public static final String CREATE_ROLE = "insert role set id = ?, role_name = ?";
@@ -19,6 +20,7 @@ public class RoleDAOImpl implements RoleDAO {
     public static final String DELETE_ROLE = "delete from role where id = ?";
 
     private static Connection connection;
+    // „то за поле такое ? ќно не должно быть глобальны полем
     List<Role> rolesList;
 
     public RoleDAOImpl () {
@@ -31,7 +33,7 @@ public class RoleDAOImpl implements RoleDAO {
         boolean result = false;
 
         try {
-
+            //ѕочему запрос выполн€етс€ два раза?
             PreparedStatement createUser = connection.prepareStatement(CREATE_ROLE);
             createUser.setInt(1, role.getId());
             createUser.setString(2, role.getRoleName());
@@ -85,6 +87,7 @@ public class RoleDAOImpl implements RoleDAO {
     }
 
     @Override
+    // два ретурна
     public Role getRole(Integer id) {
 
         try {
