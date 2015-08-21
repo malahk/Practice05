@@ -2,32 +2,40 @@ package ua.org.oracle.academy.malahk.dao;
 
 import ua.org.oracle.academy.malahk.connectors.Connector;
 import ua.org.oracle.academy.malahk.models.Address;
+import ua.org.oracle.academy.malahk.models.MusicType;
 import ua.org.oracle.academy.malahk.models.Role;
 import ua.org.oracle.academy.malahk.models.User;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by Admin on 08.07.2015.
  */
-public class UserDAOImpl implements UserDAO {
-
-    public static final String CREATE_USER = "insert users set firstName = ?, lastName = ?, age = ?, login = ?, password = ? ";
-    public static final String GET_ALL = "select users.*, address.* from users left join address on users.id = address.id";
+public class UserDAOImpl implements UserDAO
+{
+    public static final String CREATE_USER = "insert users set firstName = ?, lastName = ?, age = ?, login = ?," +
+            " password = ?, role_id = ? ";
+    public static final String GET_ALL = "select * from users";
     public static final String GET_BY_ID = "select * from users where id = ?";
-    public static final String UPDATE_USER = "update users set firstName = ?, lastName = ?, age = ?, login = ?, password = ?, role_id = ? where id = ?";
+    public static final String GET_BY_LOGIN = "select * from users where login = ?";
+    public static final String UPDATE_USER = "update users set firstName = ?, lastName = ?, age = ?, login = ?," +
+            " password = ?, role_id = ? where id = ?";
     public static final String DELETE_USER = "delete from users where id = ?";
+    public static final String DELETE_MUSIC_TYPE = "DELETE FROM user_music_type WHERE user_id = ?" +
+            " AND user_music_type_id = ?";
+    public static final String APPEND_MUSIC_TYPE = "INSERT user_music_type SET user_id = ?, user_music_type_id = ?";
 
     private static Connection connection;
     private static AddressDAOImpl addresImpl;
     private static RoleDAOImpl roleImpl;
-    List<User> usersList;
+    private static MusicTypeDAOImpl musicImpl;
 
     public UserDAOImpl () {
         connection = Connector.getConn();
         addresImpl = new AddressDAOImpl();
+        roleImpl = new RoleDAOImpl();
+        musicImpl = new MusicTypeDAOImpl();
     }
 
     @Override
@@ -43,8 +51,7 @@ public class UserDAOImpl implements UserDAO {
             createUser.setInt(3, user.getAge());
             createUser.setString(4, user.getLogin());
             createUser.setString(5, user.getPassword());
-            // roleImpl же не создано ни где, и role создавать не нужно, она должна быть уже создана, ты строишь только связь 
-            roleImpl.create(user.getRole());
+            createUser.setInt(6, user.getRole().getId());
 
             if(user.getAddress()!= null){
                 addresImpl.create(user.getAddress());
@@ -57,6 +64,8 @@ public class UserDAOImpl implements UserDAO {
                 user.setId(createdUsersRS.getInt(1));
 
             }
+
+            createUser.close();
         } catch (SQLException e){
             e.printStackTrace();
         }
@@ -64,16 +73,14 @@ public class UserDAOImpl implements UserDAO {
     }
 
     @Override
-    public List<User> getAll() {
-
+    public List<User> getAll()
+    {
+        ArrayList<User> usersList = new ArrayList<>();
         try {
-
             Statement getAll  = connection.createStatement();
             ResultSet allRS = getAll.executeQuery(GET_ALL);
-            usersList = new ArrayList<>();
 
             while (allRS.next()) {
-
                 User user = new User();
 
                 Integer id = allRS.getInt(1);
@@ -89,49 +96,37 @@ public class UserDAOImpl implements UserDAO {
                 user.setAge(age);
                 user.setLogin(login);
                 user.setPassword(password);
-                // У юзера должно быть поле ид. По которому нужно сделать запрос в рольдао
-                Role role = new Role();
-                String roleName = allRS.getString(7);
-                role.setRoleName(roleName);
-                user.setRole(role);
-                // Есть AddressDao, которое по id получит объект адреса
-                if (allRS.getInt(8) != 0) {
 
-                    Address address = new Address();
-                    String country = allRS.getString(9);
-                    String street = allRS.getString(10);
-                    Integer zipCode = allRS.getInt(11);
-                    address.setId(id);
-                    address.setCountry(country);
-                    address.setStreet(street);
-                    address.setZipCode(zipCode);
+                user.setRole(roleImpl.getRole(allRS.getInt(7)));
+                Address address = addresImpl.getAddress(id);
+                if (address != null) {
                     user.setAddress(address);
                 }
+                user.setMusicTypes(new HashSet<>(musicImpl.getByUser(user)));
 
                 usersList.add(user);
-
             }
 
+            getAll.close();
         } catch (SQLException e){
             e.printStackTrace();
         }
 
         return usersList;
-
     }
 
     @Override
-    public User getUser(Integer id) {
-
-        try {
-
+    public User getUser(Integer id)
+    {
+        try
+        {
             PreparedStatement getById = connection.prepareStatement(GET_BY_ID);
             getById.setInt(1, id);
 
             ResultSet getUserRS = getById.executeQuery();
             User user = null;
-            while (getUserRS.next()) {
-
+            while (getUserRS.next())
+            {
                 user = new User();
 
                 String firstName = getUserRS.getString(2);
@@ -140,9 +135,6 @@ public class UserDAOImpl implements UserDAO {
                 String password = getUserRS.getString(5);
                 Integer age = getUserRS.getInt(6);
 
-
-
-
                 user.setId(id);
                 user.setFirstName(firstName);
                 user.setLastName(lastName);
@@ -150,15 +142,14 @@ public class UserDAOImpl implements UserDAO {
                 user.setLogin(login);
                 user.setPassword(password);
                 user.setRole(roleImpl.getRole(id));
-                // Мне кажется что ты не то проверяеш
-                if (user.getAddress()!= null){
-                    user.setAddress(addresImpl.getAddress(id));
+                Address address = addresImpl.getAddress(id);
+                if (address != null) {
+                    user.setAddress(address);
                 }
+                user.setMusicTypes(musicImpl.getByUser(user));
             }
-
+            getById.close();
             return user;
-
-
         } catch (SQLException e){
             e.printStackTrace();
         }
@@ -167,13 +158,12 @@ public class UserDAOImpl implements UserDAO {
     }
 
     @Override
-    public boolean update(User user) {
-
-
+    public boolean update(User user)
+    {
         boolean result = false;
 
-        try {
-
+        try
+        {
             PreparedStatement updateUser = connection.prepareStatement(UPDATE_USER);
             updateUser.setString(1, user.getFirstName());
             updateUser.setString(2, user.getLastName());
@@ -189,8 +179,29 @@ public class UserDAOImpl implements UserDAO {
 
             result = updateUser.execute();
 
-            return result;
+            // update music types
+            Set<MusicType> oldMusic = musicImpl.getByUser(user);
+            for(MusicType mt : oldMusic) {
+                if (user.getMusicTypes().contains(mt)) {
+                    continue;
+                }
 
+                PreparedStatement deleteMusicType = connection.prepareStatement(DELETE_MUSIC_TYPE);
+                deleteMusicType.setInt(1, user.getId());
+                deleteMusicType.setInt(2, mt.getId());
+                deleteMusicType.execute();
+            }
+            for(MusicType mt : user.getMusicTypes()) {
+                if (oldMusic.contains(mt)) {
+                    continue;
+                }
+
+                PreparedStatement appendMusicType = connection.prepareStatement(APPEND_MUSIC_TYPE);
+                appendMusicType.setInt(1, user.getId());
+                appendMusicType.setInt(2, mt.getId());
+                appendMusicType.execute();
+            }
+            updateUser.close();
         } catch (SQLException e){
             e.printStackTrace();
         }
@@ -212,8 +223,16 @@ public class UserDAOImpl implements UserDAO {
                 addresImpl.delete(user.getAddress());
             }
 
-            result = deleteUser.execute();
+            for(MusicType mt : user.getMusicTypes()) {
 
+                PreparedStatement deleteMusicType = connection.prepareStatement(DELETE_MUSIC_TYPE);
+                deleteMusicType.setInt(1, user.getId());
+                deleteMusicType.setInt(2, mt.getId());
+                deleteMusicType.execute();
+            }
+
+            result = deleteUser.execute();
+            deleteUser.close();
         } catch (SQLException e){
             e.printStackTrace();
         }

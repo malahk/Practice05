@@ -2,10 +2,13 @@ package ua.org.oracle.academy.malahk.dao;
 
 import ua.org.oracle.academy.malahk.connectors.Connector;
 import ua.org.oracle.academy.malahk.models.MusicType;
+import ua.org.oracle.academy.malahk.models.User;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Created by Admin on 08.07.2015.
@@ -15,11 +18,12 @@ public class MusicTypeDAOImpl implements MusicTypeDAO {
     public static final String CREATE_MUSICTYPE = "insert music_type set genre = ?";
     public static final String GET_ALL = "select * from music_type";
     public static final String GET_BY_ID = "select * from music_type where id = ?";
-    public static final String UPDATE_MUSICTYPE = "update music_type set set genre = ? where id = ?";
+    public static final String GET_BY_USER = "SELECT mt.* FROM music_type AS mt LEFT JOIN user_music_type AS umt" +
+            " ON mt.id = umt.user_music_type_id WHERE umt.user_id = ?";
+    public static final String UPDATE_MUSICTYPE = "update music_type set genre = ? where id = ?";
     public static final String DELETE_MUSICTYPE = "delete from music_type where id = ?";
 
     private static Connection connection;
-    List<MusicType> musicList;
 
     public MusicTypeDAOImpl () {
         connection = Connector.getConn();
@@ -41,8 +45,9 @@ public class MusicTypeDAOImpl implements MusicTypeDAO {
 
             while(createdMusicTypeRS.next()) {
                 musicType.setId(createdMusicTypeRS.getInt(1));
-
             }
+            createMusicType.close();
+
         } catch (SQLException e){
             e.printStackTrace();
         }
@@ -51,12 +56,11 @@ public class MusicTypeDAOImpl implements MusicTypeDAO {
 
     @Override
     public List<MusicType> getAll() {
+        ArrayList<MusicType> musicList = new ArrayList<>();
         try {
-
             Statement getAll  = connection.createStatement();
             ResultSet allRS = getAll.executeQuery(GET_ALL);
             MusicType musicType;
-            musicList = new ArrayList<>();
 
             while (allRS.next()) {
 
@@ -69,6 +73,7 @@ public class MusicTypeDAOImpl implements MusicTypeDAO {
                 musicType.setMusicGenre(genre);
                 musicList.add(musicType);
             }
+            getAll.close();
 
         } catch (SQLException e){
             e.printStackTrace();
@@ -78,33 +83,56 @@ public class MusicTypeDAOImpl implements MusicTypeDAO {
     }
 
     @Override
-    public MusicType getMusicType(Integer id) {
+    public Set<MusicType> getByUser(User user)
+    {
+        Set<MusicType> musicList = new HashSet<>();
+        try {
+            PreparedStatement getByUser = connection.prepareStatement(GET_BY_USER);
+            getByUser.setInt(1, user.getId());
+            ResultSet getMusicTypeRS = getByUser.executeQuery();
+
+            while (getMusicTypeRS.next()) {
+                MusicType musicType = new MusicType();
+
+                Integer id = getMusicTypeRS.getInt(1);
+                String genre = getMusicTypeRS.getString(2);
+                musicType.setId(id);
+                musicType.setMusicGenre(genre);
+
+                musicList.add(musicType);
+            }
+            getByUser.close();
+        } catch (SQLException e){
+            e.printStackTrace();
+        }
+
+        return musicList;
+    }
+
+    @Override
+    public MusicType getMusicType(Integer id)
+    {
+        MusicType musicType = new MusicType();
         try {
 
             PreparedStatement getById = connection.prepareStatement(GET_BY_ID);
             getById.setInt(1, id);
 
             ResultSet getMusicTypeRS = getById.executeQuery();
-            MusicType musicType = null;
             while (getMusicTypeRS.next()) {
-
-                musicType = new MusicType();
-
                 String genre = getMusicTypeRS.getString(2);
 
                 musicType.setId(id);
                 musicType.setMusicGenre(genre);
 
             }
-
-            return musicType;
-
+            getById.close();
 
         } catch (SQLException e){
             e.printStackTrace();
         }
 
-        return null;
+        return musicType;
     }
 
     @Override
@@ -118,9 +146,6 @@ public class MusicTypeDAOImpl implements MusicTypeDAO {
             updateMusicType.setInt(2, musicType.getId());
 
             result = updateMusicType.execute();
-
-            return result;
-
         } catch (SQLException e){
             e.printStackTrace();
         }
@@ -129,8 +154,8 @@ public class MusicTypeDAOImpl implements MusicTypeDAO {
     }
 
     @Override
-    public boolean delete(MusicType musicType) {
-
+    public boolean delete(MusicType musicType)
+    {
         boolean result = false;
 
         try {
@@ -139,6 +164,7 @@ public class MusicTypeDAOImpl implements MusicTypeDAO {
             deleteMusicType.setInt(1, musicType.getId());
 
             result = deleteMusicType.execute();
+            deleteMusicType.close();
 
         } catch (SQLException e){
             e.printStackTrace();

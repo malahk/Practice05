@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * Created by Admin on 08.07.2015.
  */
-//PreparedStatement нужно закрывать
+
 public class RoleDAOImpl implements RoleDAO {
 
     public static final String CREATE_ROLE = "insert role set id = ?, role_name = ?";
@@ -20,8 +20,6 @@ public class RoleDAOImpl implements RoleDAO {
     public static final String DELETE_ROLE = "delete from role where id = ?";
 
     private static Connection connection;
-    // „то за поле такое ? ќно не должно быть глобальны полем
-    List<Role> rolesList;
 
     public RoleDAOImpl () {
         connection = Connector.getConn();
@@ -33,51 +31,47 @@ public class RoleDAOImpl implements RoleDAO {
         boolean result = false;
 
         try {
-            //ѕочему запрос выполн€етс€ два раза?
-            PreparedStatement createUser = connection.prepareStatement(CREATE_ROLE);
-            createUser.setInt(1, role.getId());
-            createUser.setString(2, role.getRoleName());
-
-            result = createUser.execute();
-
             PreparedStatement createRole = connection.prepareStatement(CREATE_ROLE, Statement.RETURN_GENERATED_KEYS);
             createRole.setInt(1, role.getId());
             createRole.setString(2, role.getRoleName());
 
-            result = createUser.execute();
+            result = createRole.execute();
 
-            ResultSet createdRolesRS = createUser.getGeneratedKeys();
+            ResultSet createdRolesRS = createRole.getGeneratedKeys();
             createdRolesRS.next();
             role.setId(createdRolesRS.getInt(1));
+            createRole.close();
 
         } catch (SQLException e){
             e.printStackTrace();
         }
+
         return result;
     }
 
     @Override
-    public List<Role> getAll() {
-        try {
-
+    public List<Role> getAll()
+    {
+        ArrayList<Role> rolesList = new ArrayList<>();
+        try
+        {
             Statement getAll  = connection.createStatement();
             ResultSet allRolesRS = getAll.executeQuery(GET_ALL);
             Role role;
-            rolesList = new ArrayList<>();
 
-            while (allRolesRS.next()) {
-
+            while (allRolesRS.next())
+            {
                 role = new Role();
 
                 Integer id = allRolesRS.getInt(1);
                 String roleName = allRolesRS.getString(2);
-
 
                 role.setId(id);
                 role.setRoleName(roleName);
 
                 rolesList.add(role);
             }
+        getAll.close();
 
         } catch (SQLException e){
             e.printStackTrace();
@@ -87,32 +81,27 @@ public class RoleDAOImpl implements RoleDAO {
     }
 
     @Override
-    // два ретурна
-    public Role getRole(Integer id) {
-
+    public Role getRole(Integer id)
+    {
+        Role role = null;
         try {
-
             PreparedStatement getById = connection.prepareStatement(GET_BY_ID);
             getById.setInt(1, id);
-
             ResultSet getRoleRS = getById.executeQuery();
-            Role role = null;
 
-            while (getRoleRS.next()) {
-
+            while (getRoleRS.next())
+            {
                 String roleName = getRoleRS.getString(2);
-
                 role.setId(id);
                 role.setRoleName(roleName);
-
             }
-
-            return role;
+             getById.close();
 
         } catch (SQLException e){
             e.printStackTrace();
         }
-        return null;
+
+        return role;
     }
 
     @Override
@@ -126,8 +115,7 @@ public class RoleDAOImpl implements RoleDAO {
             updateRole.setInt(2, role.getId());
 
             result = updateRole.execute();
-
-            return result;
+            updateRole.close();
 
         } catch (SQLException e){
             e.printStackTrace();
@@ -137,15 +125,16 @@ public class RoleDAOImpl implements RoleDAO {
     }
 
     @Override
-    public boolean delete(Role role) {
+    public boolean delete(Role role)
+    {
         boolean result = false;
 
         try {
-
             PreparedStatement deleteRole = connection.prepareStatement(DELETE_ROLE);
             deleteRole.setInt(1, role.getId());
 
             result = deleteRole.execute();
+            deleteRole.close();
 
         } catch (SQLException e){
             e.printStackTrace();

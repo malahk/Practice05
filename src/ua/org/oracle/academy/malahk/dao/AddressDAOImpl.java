@@ -19,19 +19,17 @@ public class AddressDAOImpl implements AddressDAO {
     public static final String DELETE_ADDRESS = "delete from address where id = ?";
 
     private static Connection connection;
-    List<Address> addressList;
 
     public AddressDAOImpl () {
         connection = Connector.getConn();
     }
 
     @Override
-    public boolean create(Address address) {
-
+    public boolean create(Address address)
+    {
         boolean result = false;
 
         try {
-
             PreparedStatement createAddress = connection.prepareStatement(CREATE_ADDRESS, Statement.RETURN_GENERATED_KEYS);
             createAddress.setString(1, address.getCountry());
             createAddress.setString(2, address.getStreet());
@@ -46,16 +44,20 @@ public class AddressDAOImpl implements AddressDAO {
                 address.setId(createdAddressDB.getInt(1));
             }
 
+            createAddress.close();
+
         } catch (SQLException e){
             e.printStackTrace();
         }
+
         return result;
     }
 
     @Override
-    public List<Address> getAll() {
+    public List<Address> getAll()
+    {
+        ArrayList<Address> addressList = null;
         try {
-
             Statement getAll  = connection.createStatement();
             ResultSet allRS = getAll.executeQuery(GET_ALL);
             Address address;
@@ -76,6 +78,8 @@ public class AddressDAOImpl implements AddressDAO {
                 address.setZipCode(zipCode);
                 addressList.add(address);
             }
+
+            getAll.close();
 
         } catch (SQLException e){
             e.printStackTrace();
@@ -108,8 +112,8 @@ public class AddressDAOImpl implements AddressDAO {
 
             }
 
+            getById.close();
             return address;
-
 
         } catch (SQLException e){
             e.printStackTrace();
@@ -132,8 +136,7 @@ public class AddressDAOImpl implements AddressDAO {
             updateAddress.setInt(4, address.getId());
 
             result = updateAddress.execute();
-
-            return result;
+            updateAddress.close();
 
         } catch (SQLException e){
             e.printStackTrace();
@@ -153,6 +156,7 @@ public class AddressDAOImpl implements AddressDAO {
             deleteAddress.setInt(1, address.getId());
 
             result = deleteAddress.execute();
+            deleteAddress.close();
 
         } catch (SQLException e){
             e.printStackTrace();
